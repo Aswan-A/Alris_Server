@@ -1,0 +1,3 @@
+open-clip-torch
+torchvision
+pillow

@@ -1,6 +1,6 @@
 import requests
 
-url = "http://localhost:5000/upload"
+url = "https://alris-server.onrender.com/upload"
 files = {"photo": open("test.jpeg", "rb")}
 data = {"latitude": "12.34", "longitude": "56.78"}
 
