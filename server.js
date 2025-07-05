@@ -9,10 +9,14 @@ const PORT = 5000;
 // Middleware
 app.use(bodyParser.json());
 
-    const isVerifiedAdmin = async (email) => {
-      const doc = await admin.firestore().collection("verified_admins").doc(email).get();
-      return doc.exists;
-    };
+const isVerifiedAdmin = async (email) => {
+  const doc = await admin
+    .firestore()
+    .collection("verified_admins")
+    .doc(email)
+    .get();
+  return doc.exists;
+};
 // Firebase Admin setup
 admin.initializeApp({
   credential: admin.credential.cert(require("./serviceAccountKey.json")),
@@ -30,7 +34,7 @@ app.post("/verifyToken", async (req, res) => {
     const decodedToken = await admin.auth().verifyIdToken(idToken);
     const uid = decodedToken.uid;
     const email = decodedToken.email;
-
+    const name = decodedToken.name || "";
     const userRef = admin.firestore().collection("users").doc(uid);
     const userDoc = await userRef.get();
 
@@ -43,7 +47,7 @@ app.post("/verifyToken", async (req, res) => {
         const verified = await isVerifiedAdmin(email);
         status = verified ? "approved" : "denied";
       }
-      await userRef.set({ email, role, status });
+      await userRef.set({ email, name, role, status });
 
       if (status === "pending") {
         await admin.firestore().collection("approval_requests").add({
@@ -55,7 +59,9 @@ app.post("/verifyToken", async (req, res) => {
         });
       }
 
-      console.log(`[verifyToken] New ${role} registered: ${email}, status: ${status}`);
+      console.log(
+        `[verifyToken] New ${role} registered: ${email}, status: ${status}`
+      );
       return res.status(200).json({ status });
     }
 
