@@ -1,4 +1,4 @@
-// This handles database or file saving
+
 module.exports = async function runSave(data) {
   const {
     photo,

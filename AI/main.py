@@ -1,12 +1,16 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Form, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from starlette.status import HTTP_403_FORBIDDEN
+from uuid import uuid4
 
-from .clip_model import classify_clip
-from .fake_model import detect_fake
+from .validate import validate_inputs
+from .classifier_model import classify_clip
 from .spam_model import check_spam
+from .fake_model import detect_fake
 
 app = FastAPI()
+
+API_KEY = "1234"
 
 app.add_middleware(
     CORSMiddleware,
@@ -15,24 +19,45 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class SpamRequest(BaseModel):
-    description: str
+# Middleware to check API key
+@app.middleware("http")
+async def restrict_to_node(request: Request, call_next):
+    if request.headers.get("x-api-key") != API_KEY:
+        raise HTTPException(status_code=HTTP_403_FORBIDDEN, detail="Unauthorized")
+    return await call_next(request)
 
-# --- Endpoints ---
+@app.post("/model")
+async def model_handler(
+    photo: UploadFile = File(...),
+    description: str = Form(...),
+    latitude: str = Form(None),
+    longitude: str = Form(None)
+):
+    try:
+        image_bytes = await photo.read()
 
-@app.post("/classify")
-async def classify(photo: UploadFile = File(...)):
-    image_bytes = await photo.read()
-    result = classify_clip(image_bytes)
-    return result
+        print(f"Received file: {photo.filename}")
+        print(f"Description: {description}")
+        print(f"Latitude: {latitude}, Longitude: {longitude}")
 
-@app.post("/spam")
-async def spam_check(request: SpamRequest):
-    result = check_spam(request.description)
-    return result
+        validate_inputs(photo, image_bytes, description)
 
-@app.post("/fake")
-async def fake_check(photo: UploadFile = File(...)):
-    image_bytes = await photo.read()
-    result = detect_fake(image_bytes)
-    return result
+        classification = classify_clip(image_bytes)
+        spam_result = check_spam(description)
+        fake_result = detect_fake(image_bytes)
+
+        return {
+            "message": "Processed successfully",
+            "classification": classification,
+            "isSpam": spam_result,
+            "isFake": fake_result,
+            "description": description,
+            "location": {
+                "latitude": latitude,
+                "longitude": longitude
+            }
+        }
+
+    except Exception as e:
+        print("Error:", str(e))
+        raise HTTPException(status_code=400, detail=str(e))
