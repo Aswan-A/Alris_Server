@@ -2,6 +2,7 @@ const express = require("express");
 const admin = require("firebase-admin");
 const bodyParser = require("body-parser");
 const uploadRoute = require("./routes/upload");
+const initDB = require("./db/initDb");
 
 const app = express();
 const PORT = 5000;
@@ -82,7 +83,8 @@ app.post("/verifyToken", async (req, res) => {
 });
 
 app.use("/upload", uploadRoute);
-
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server running on http://0.0.0.0:${PORT}`);
+initDB().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
 });
