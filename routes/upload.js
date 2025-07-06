@@ -58,7 +58,8 @@ router.post("/", upload.single("photo"), async (req, res) => {
   description,
   latitude,
   longitude,
-  classification: response.data.classification.label,
+  label: response.data.classification.label,
+  department: response.data.classification.department,
   isSpam: response.data.isSpam?.spam ?? false,
   isFake: response.data.isFake?.fake ?? false,
   userId

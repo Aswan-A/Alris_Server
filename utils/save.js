@@ -17,7 +17,8 @@ module.exports = async function runSave(data) {
     description,
     latitude,
     longitude,
-    classification,
+    label,
+    department,
     isSpam,
     isFake,
     userId,
@@ -25,7 +26,7 @@ module.exports = async function runSave(data) {
 
   try {
     const fileBuffer = fs.readFileSync(imagePath);
-    const storagePath = `${classification}/${photo.filename}`;
+    const storagePath = `${department}/${photo.filename}`;
 
 
     const { error: uploadError } = await supabase.storage
@@ -44,10 +45,11 @@ module.exports = async function runSave(data) {
 
     await db("uploads").insert({
       filename: photo.filename,
+      department,
       description,
       latitude,
       longitude,
-      classification,
+      label,
       is_spam: isSpam,
       is_fake: isFake,
       user_id: userId || "anonymous",
@@ -56,7 +58,8 @@ module.exports = async function runSave(data) {
 
     console.log("✅ Saved to DB:", {
       publicUrl,
-      classification,
+      label,
+      department,
       isSpam,
       isFake,
       latitude,

@@ -16,5 +16,6 @@ response = requests.post(url, files=files, data=data)
 
 print("Status Code:", response.status_code)
 data = response.json()
+print(f"✅ Department: {data['classification']['department']}")
 print(f"✅ Label: {data['classification']['label']}")
 print(f"📍 Location: ({data['location']['latitude']}, {data['location']['longitude']})")
