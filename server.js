@@ -2,6 +2,7 @@ const express = require("express");
 const admin = require("firebase-admin");
 const bodyParser = require("body-parser");
 const uploadRoute = require("./routes/upload");
+const reportRoute = require("./routes/reports");
 const initDB = require("./db/initDb");
 
 const app = express();
@@ -81,7 +82,7 @@ app.post("/verifyToken", async (req, res) => {
     return res.status(401).json({ error: "Invalid or expired token" });
   }
 });
-
+app.use("/reports", reportRoute);
 app.use("/upload", uploadRoute);
 initDB().then(() => {
   app.listen(PORT, () => {
