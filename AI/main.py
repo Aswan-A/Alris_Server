@@ -6,6 +6,7 @@ from uuid import uuid4
 from .validate import validate_inputs
 from .classifier_model import classify_clip
 from .spam_model import check_spam
+from .merge_model import merge_model
 from .fake_model import detect_fake
 
 app = FastAPI()
@@ -44,6 +45,7 @@ async def model_handler(
 
         classification = classify_clip(image_bytes)
         spam_result = check_spam(description)
+        merge_result = merge_model(image_bytes,latitude,longitude)
         fake_result = detect_fake(image_bytes)
 
         return {
@@ -55,7 +57,8 @@ async def model_handler(
             "location": {
                 "latitude": latitude,
                 "longitude": longitude
-            }
+            },
+            "merge":merge_result
         }
 
     except Exception as e:

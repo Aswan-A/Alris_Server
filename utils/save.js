@@ -22,6 +22,10 @@ module.exports = async function runSave(data) {
     isSpam,
     isFake,
     userId,
+    issueId,
+    isDuplicate,
+    duplicateOfId,
+    embedding 
   } = data;
 
   try {
@@ -42,7 +46,7 @@ module.exports = async function runSave(data) {
     }
 
     const publicUrl = `${process.env.SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/${storagePath}`;
-
+    const formattedEmbedding = `[${embedding.join(',')}]`;
     await db("uploads").insert({
       filename: photo.filename,
       department,
@@ -53,7 +57,12 @@ module.exports = async function runSave(data) {
       is_spam: isSpam,
       is_fake: isFake,
       user_id: userId || "anonymous",
-      public_url: publicUrl
+      public_url: publicUrl,
+      issue_id: issueId,
+      is_duplicate: isDuplicate,  
+      duplicate_of_id: duplicateOfId,
+      embedding: db.raw("?::vector", [formattedEmbedding]),
+      location: db.raw("ST_SetSRID(ST_MakePoint(?, ?), 4326)", [longitude, latitude]),
     });
 
     console.log("✅ Saved to DB:", {
@@ -64,7 +73,11 @@ module.exports = async function runSave(data) {
       isFake,
       latitude,
       longitude,
+      issueId,
+      isDuplicate,
+      duplicateOfId
     });
+
 
     return true;
   } catch (err) {

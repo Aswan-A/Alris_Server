@@ -62,7 +62,11 @@ router.post("/", upload.single("photo"), async (req, res) => {
   department: response.data.classification.department,
   isSpam: response.data.isSpam?.spam ?? false,
   isFake: response.data.isFake?.fake ?? false,
-  userId
+  userId,
+  issueId: response.data.merge?.issue_id ?? null,
+  isDuplicate: response.data.merge?.is_duplicate ?? false,
+  duplicateOfId: response.data.merge?.duplicate_of_id ?? null,
+  embedding: response.data.merge?.embedding ?? null
 });
 
 
