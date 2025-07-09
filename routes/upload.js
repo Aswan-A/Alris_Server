@@ -27,59 +27,103 @@ const upload = multer({
   },
 });
 
-// POST /upload route
-router.post("/", upload.single("photo"), async (req, res) => {
-  const { userId, description = "", latitude = null, longitude = null } = req.body;
-  const photo = req.file;
 
-  if (!photo) {
-    return res.status(400).json({ error: "No image uploaded." });
-  }
 
-  const imagePath = path.join(uploadDir, photo.filename);
 
+router.post("/multi", async (req, res) => {
   try {
-    const form = new FormData();
-    form.append("photo", fs.createReadStream(imagePath));
-    form.append("description", description);
-    if (latitude) form.append("latitude", latitude);
-    if (longitude) form.append("longitude", longitude);
+    const {
+      latitude,
+      longitude,
+      userId = null,
+      description = "",  
+      images = [],
+    } = req.body;
 
-    const response = await axios.post("http://localhost:8000/model", form, {
-      headers: {
-        ...form.getHeaders(),
-        "x-api-key": process.env.API_KEY,
-      },
-    });
+    if (!Array.isArray(images) || images.length === 0) {
+      return res.status(400).json({ error: "No images provided." });
+    }
 
-    await runSave({
-  photo,
-  imagePath, 
-  description,
-  latitude,
-  longitude,
-  label: response.data.classification.label,
-  department: response.data.classification.department,
-  isSpam: response.data.isSpam?.spam ?? false,
-  isFake: response.data.isFake?.fake ?? false,
-  userId,
-  issueId: response.data.merge?.issue_id ?? null,
-  isDuplicate: response.data.merge?.is_duplicate ?? false,
-  duplicateOfId: response.data.merge?.duplicate_of_id ?? null,
-  embedding: response.data.merge?.embedding ?? null
-});
+    const reportId = uuidv4(); 
+    const results = [];
 
+    for (const img of images) {
+      const { filename, base64 } = img;
 
-    fs.unlink(imagePath, () => {}); // Cleanup temp image
+      if (!filename || !base64) {
+        results.push({
+          filename: filename || "unknown",
+          status: "error",
+          error: "Missing filename or base64 data.",
+        });
+        continue;
+      }
+
+      const buffer = Buffer.from(base64, "base64");
+      const uniqueName = `${uuidv4()}-${filename}`;
+      const tempPath = path.join(uploadDir, uniqueName);
+
+      fs.writeFileSync(tempPath, buffer);
+
+      try {
+        const form = new FormData();
+        form.append("photo", fs.createReadStream(tempPath));
+        form.append("description", description); 
+        if (latitude) form.append("latitude", latitude);
+        if (longitude) form.append("longitude", longitude);
+
+        const response = await axios.post("http://localhost:8000/model", form, {
+          headers: {
+            ...form.getHeaders(),
+            "x-api-key": process.env.API_KEY,
+          },
+        });
+
+        await runSave({
+          photo: { filename: uniqueName },
+          imagePath: tempPath,
+          description,
+          latitude,
+          longitude,
+          label: response.data.classification.label,
+          department: response.data.classification.department,
+          isSpam: response.data.isSpam?.spam ?? false,
+          isFake: response.data.isFake?.fake ?? false,
+          userId,
+          issueId: response.data.merge?.issue_id ?? null,
+          isDuplicate: response.data.merge?.is_duplicate ?? false,
+          duplicateOfId: response.data.merge?.duplicate_of_id ?? null,
+          embedding: response.data.merge?.embedding ?? null,
+          reportId, 
+        });
+
+        results.push({
+          filename,
+          status: "success",
+          label: response.data.classification.label,
+          reportId,
+        });
+      } catch (err) {
+        console.error(`❌ Error processing ${filename}:`, err.message);
+        results.push({
+          filename,
+          status: "error",
+          error: err.message,
+        });
+      } finally {
+        // Cleanup temp image
+        fs.unlink(tempPath, () => {});
+      }
+    }
 
     return res.status(200).json({
-      message: "Upload processed successfully",
-      ...response.data,
+      message: "Upload(s) processed",
+      reportId,
+      results,
     });
   } catch (err) {
-    console.error("Upload error:", err.message);
-    fs.unlink(imagePath, () => {});
-    return res.status(500).json({ error: "Upload failed. Please try again." });
+    console.error("❌ Multi-upload error:", err.message);
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 

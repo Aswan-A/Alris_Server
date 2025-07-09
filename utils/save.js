@@ -25,8 +25,10 @@ module.exports = async function runSave(data) {
     issueId,
     isDuplicate,
     duplicateOfId,
-    embedding 
+    embedding,
+    reportId 
   } = data;
+
 
   try {
     const fileBuffer = fs.readFileSync(imagePath);
@@ -41,31 +43,33 @@ module.exports = async function runSave(data) {
       });
 
     if (uploadError) {
-      console.error("❌ Supabase upload error:", uploadError.message);
+      console.error(" Supabase upload error:", uploadError.message);
       throw new Error("Failed to upload image to Supabase.");
     }
 
     const publicUrl = `${process.env.SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/${storagePath}`;
     const formattedEmbedding = `[${embedding.join(',')}]`;
-    await db("uploads").insert({
-      filename: photo.filename,
-      department,
-      description,
-      latitude,
-      longitude,
-      label,
-      is_spam: isSpam,
-      is_fake: isFake,
-      user_id: userId || "anonymous",
-      public_url: publicUrl,
-      issue_id: issueId,
-      is_duplicate: isDuplicate,  
-      duplicate_of_id: duplicateOfId,
-      embedding: db.raw("?::vector", [formattedEmbedding]),
-      location: db.raw("ST_SetSRID(ST_MakePoint(?, ?), 4326)", [longitude, latitude]),
-    });
+     await db("uploads").insert({
+    filename: photo.filename,
+    department,
+    description,
+    latitude,
+    longitude,
+    label,
+    is_spam: isSpam,
+    is_fake: isFake,
+    user_id: userId || "anonymous",
+    public_url: publicUrl,
+    issue_id: issueId,
+    is_duplicate: isDuplicate,  
+    duplicate_of_id: duplicateOfId,
+    embedding: db.raw("?::vector", [formattedEmbedding]),
+    location: db.raw("ST_SetSRID(ST_MakePoint(?, ?), 4326)", [longitude, latitude]),
+    report_id: reportId 
+  });
 
-    console.log("✅ Saved to DB:", {
+
+    console.log("Saved to DB:", {
       publicUrl,
       label,
       department,
@@ -75,7 +79,8 @@ module.exports = async function runSave(data) {
       longitude,
       issueId,
       isDuplicate,
-      duplicateOfId
+      duplicateOfId,
+      reportId
     });
 
 

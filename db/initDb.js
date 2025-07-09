@@ -21,7 +21,8 @@ if (!exists) {
     table.specificType("embedding", "vector(512)");           
     table.uuid("issue_id");                                   
     table.boolean("is_duplicate").defaultTo(false);           
-    table.uuid("duplicate_of_id");                           
+    table.uuid("duplicate_of_id");  
+    table.uuid("report_id");                          
   });
 
     console.log("✅ 'uploads' table created.");
