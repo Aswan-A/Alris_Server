@@ -27,9 +27,6 @@ const upload = multer({
   },
 });
 
-
-
-
 router.post("/multi", async (req, res) => {
   try {
     const {
@@ -59,19 +56,34 @@ router.post("/multi", async (req, res) => {
         continue;
       }
 
-      const buffer = Buffer.from(base64, "base64");
-      const uniqueName = `${uuidv4()}-${filename}`;
-      const tempPath = path.join(uploadDir, uniqueName);
+      // Base64 length check
+      if (base64.length < 100) {
+        console.warn(`⚠️ Short or missing base64 string for: ${filename}`);
+      }
 
-      fs.writeFileSync(tempPath, buffer);
-
+      // Decode and write image
+      let tempPath = "";
       try {
+        const buffer = Buffer.from(base64, "base64");
+        const uniqueName = `${uuidv4()}-${filename}`;
+        tempPath = path.join(uploadDir, uniqueName);
+
+        fs.writeFileSync(tempPath, buffer);
+        const stats = fs.statSync(tempPath);
+        console.log(`📸 Saved: ${filename} as ${uniqueName} (${stats.size} bytes)`);
+
+        if (stats.size < 1024) {
+          console.warn(`⚠️ Warning: ${filename} is very small (might be corrupted)`);
+        }
+
+        // Create FormData for model server
         const form = new FormData();
         form.append("photo", fs.createReadStream(tempPath));
-        form.append("description", description); 
+        form.append("description", description);
         if (latitude) form.append("latitude", latitude);
         if (longitude) form.append("longitude", longitude);
 
+        console.log(`📤 Uploading ${filename} to model server...`);
         const response = await axios.post("http://localhost:8000/model", form, {
           headers: {
             ...form.getHeaders(),
@@ -79,6 +91,9 @@ router.post("/multi", async (req, res) => {
           },
         });
 
+        console.log(`✅ Model response for ${filename}:`, response.data);
+
+        // Save results in DB
         await runSave({
           photo: { filename: uniqueName },
           imagePath: tempPath,
@@ -94,7 +109,7 @@ router.post("/multi", async (req, res) => {
           isDuplicate: response.data.merge?.is_duplicate ?? false,
           duplicateOfId: response.data.merge?.duplicate_of_id ?? null,
           embedding: response.data.merge?.embedding ?? null,
-          reportId, 
+          reportId,
         });
 
         results.push({
@@ -103,16 +118,21 @@ router.post("/multi", async (req, res) => {
           label: response.data.classification.label,
           reportId,
         });
+
       } catch (err) {
         console.error(`❌ Error processing ${filename}:`, err.message);
+        if (err.response?.data) {
+          console.error("📥 Model server responded with:", err.response.data);
+        }
         results.push({
           filename,
           status: "error",
-          error: err.message,
+          error: err.message || "Unknown error",
         });
       } finally {
-        // Cleanup temp image
-        fs.unlink(tempPath, () => {});
+        if (tempPath && fs.existsSync(tempPath)) {
+          fs.unlink(tempPath, () => {});
+        }
       }
     }
 
