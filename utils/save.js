@@ -58,7 +58,7 @@ module.exports = async function runSave(data) {
     label,
     is_spam: isSpam,
     is_fake: isFake,
-    user_id: userId || "anonymous",
+    user_id: userId ,
     public_url: publicUrl,
     issue_id: issueId,
     is_duplicate: isDuplicate,  
