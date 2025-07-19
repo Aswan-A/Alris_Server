@@ -32,7 +32,7 @@ router.post("/multi", async (req, res) => {
     const {
       latitude,
       longitude,
-      userId = null,
+      userId ,
       description = "",  
       images = [],
     } = req.body;
